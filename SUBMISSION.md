@@ -1,42 +1,53 @@
-# Build What Moves India — submission pack
+# CyberSahay — Build What Moves India submission pack
 
-## Live demo
+## Public links
 
-https://build-what-moves-india-zeta.vercel.app
+- Repository: https://github.com/1mp23ad001-am10/cybersahay-build-what-moves-india
+- App: add the Render public URL here after the service is live.
 
-## Two-minute demo video plan
+## Project summary (218 words)
 
-Use a real screen recording for the core demo. It proves the flow works better than a fully synthetic video. A Hyperframes-style motion opener is optional and should be no longer than 8 seconds.
+CyberSahay is an independent hackathon prototype that rethinks one stressful public-service journey: reporting a cybercrime. Today, a victim may need to choose a category, understand unfamiliar terms and remember many facts while under pressure. CyberSahay starts with a single incident account instead. A citizen can type or speak what happened, and the app maps the known facts into a live checklist: what is captured, what is still required and what is optional. Earlier facts remain visible instead of disappearing when someone remembers a new detail.
 
-| Time | Screen | Voiceover |
+The complete Financial Fraud journey works with synthetic data: choose a route, describe the incident, see required and optional information, add protected identifiers separately, attach evidence, review masked values and receive a clearly labelled local-demo reference. It supports English, Hindi and Kannada UI, recognises common Kannada date and time phrases, includes a 1930/bank warning for financial fraud, and never asks for OTPs, passwords, PINs or full card numbers.
+
+This is not an official government site and does not file a complaint with NCRP. Government integrations, identity verification and official case tracking are deliberately mocked. The public deployment runs a React/Vite client with an Express API, SQLite draft storage, evidence storage and health checks on Render. Codex was used meaningfully to build, test and deploy the journey; the final workflow keeps the citizen in control because structured state and explicit review, not an LLM, decide what is missing or submitted.
+
+## Exact two-minute narration and shot list
+
+Record a real 1080p browser session with **synthetic data only**. The first minute is the citizen journey; the second is the build and product rationale, as required by the Builder Brief.
+
+| Time | Screen recording | Narration |
 | --- | --- | --- |
-| 0:00–0:08 | Title: **CyberSahay — a calmer cybercrime reporting journey** | “Reporting cybercrime should not begin with a maze of categories, unfamiliar terms, and a long form. It should begin with one question: what happened?” |
-| 0:08–0:24 | Show the official portal's public landing or category page briefly. Do not enter personal data. | “Today, a victim under stress often has to decide the right category and find the facts a report needs before they can even start. CyberSahay is a prototype that reorganises that experience around the victim’s own account.” |
-| 0:24–0:43 | Open CyberSahay. Select Financial fraud. Show the required/optional guide and 1930 message. | “Before asking for details, CyberSahay explains what is required, what is optional, and when to call 1930. It clearly says this is a local demo, not a government submission.” |
-| 0:43–1:07 | Type or speak a short incident narrative. Use synthetic data only. | “The citizen speaks or types naturally in one incident box. The checklist maps facts as they appear—incident date, time, State, name, mobile number, and financial details—so the user always sees what is captured and what is still needed.” |
-| 1:07–1:23 | Add another detail. Show that existing values remain and the live checklist displays captured values. | “When a person remembers another detail, earlier facts stay preserved. The next missing field is made explicit instead of making the person hunt through a form.” |
-| 1:23–1:39 | Switch to Kannada and show a Kannada sample date/time being mapped. | “The flow supports English, Hindi, and Kannada UI. The local mapper recognises common Kannada date and time formats, including month names, Kannada numerals, and phrases like evening five o’clock.” |
-| 1:39–1:53 | Show protected-details input, then review screen with masked values. | “Sensitive identifiers are deliberately separate. UPI IDs, UTRs, account numbers, and phone numbers are typed, masked in the public preview, and never requested as OTPs, PINs, passwords, or full card numbers.” |
-| 1:53–2:00 | Show final review and local demo reference. End card: **Clearer. calmer. reviewable.** | “CyberSahay does not pretend to replace the official system. It demonstrates a safer, calmer intake layer that helps a victim arrive at a reviewable report with less confusion.” |
+| 0:00–0:07 | Title card: **CyberSahay — a calmer way to prepare a cybercrime report** | “When someone has just lost money to cyber fraud, a long form is the wrong place to begin.” |
+| 0:07–0:17 | Select **Financial Fraud**. | “CyberSahay is an independent prototype for one public-service problem: making cybercrime reporting clearer when a victim is stressed.” |
+| 0:17–0:29 | Show the required-versus-optional guide and 1930 warning. | “Before collecting anything, it says what matters now, what is optional, and when to call 1930 and contact the bank.” |
+| 0:29–0:43 | In the incident box, type a short fictional narrative with name, phone, State, date and time. | “The citizen simply explains what happened in one place. A live checklist maps each fact and shows both the captured value and the next missing detail.” |
+| 0:43–0:53 | Add a second fictional sentence, for example loss amount and wallet; show earlier facts still visible. | “When another detail comes to mind, it is added without overwriting the earlier story. Nothing already captured vanishes.” |
+| 0:53–1:00 | Brief Kannada narrative showing date/time mapping. | “The same journey supports English, Hindi and Kannada, including common Kannada date and time phrasing.” |
+| 1:00–1:12 | Show protected-details section and masked review; do not type a real identifier. | “Privacy is built into the flow: protected identifiers are separate, review values are masked, and the product never asks for an OTP, PIN, password or full card number.” |
+| 1:12–1:26 | Show evidence list, final review, then local-demo reference. | “The end-to-end journey works today with mock data: route, incident, evidence, protected review and a clearly labelled local-demo reference. It never claims that a government complaint was filed.” |
+| 1:26–1:42 | Show a simple architecture slide: React/Vite → Express API → Render disk/SQLite. | “Behind the interface, the public build uses React and Vite with an Express API. Render hosts the full service, while persistent storage keeps the synthetic local draft and evidence data across restarts.” |
+| 1:42–1:54 | Show the checklist and source code briefly. | “I used Codex as a meaningful build partner: to build the workflow, add multilingual date-and-time extraction, preserve state across edits, test the production build and deploy the service. I reviewed the product choices and tested the user journey myself.” |
+| 1:54–2:00 | End card: **Clearer. Calmer. Reviewable.** | “CyberSahay does not replace an official portal. It shows how a safer intake layer can help a citizen arrive at a reviewable report with less confusion.” |
 
-## What to say about Codex and ChatGPT
+## Editing instructions
 
-Use this wording exactly only if it reflects your work:
+1. Use a real screen recording for every behaviour you describe. Do not show an interaction that does not work.
+2. Keep the first 60 seconds strictly citizen-facing. Keep the explanation of architecture, Codex and mock limitations in the second 60 seconds.
+3. Create the title/end cards in Hyperframes if desired, but use the actual browser recording for the core journey. Assemble clips and narration in Clipchamp, OBS, Loom, CapCut or Hyperframes; export one public MP4 at 1080p, under two minutes.
+4. Use no government logos or real portal logins. Do not say “better than” as an unsupported claim; demonstrate the specific improvements instead: one incident account, live checklist, preserved facts, multilingual input and privacy-first review.
+5. Open the final public URL in an incognito/private window before submitting. Check the home page, `/api/health`, narrative mapping, draft save, review and the final local-demo reference.
 
-> “I used Codex as a hands-on build partner: to scaffold the React and Express application, iterate on the report workflow, add multilingual deterministic extraction, improve accessibility and privacy safeguards, diagnose mapping failures with test fixtures, run production builds, and deploy the frontend to Vercel. I reviewed each product decision and tested the user flow myself. The submitted product does not claim that an LLM files complaints or decides report fields; structured application state and user review remain in control.”
+## Required honesty statement
 
-Do **not** claim that ChatGPT Sites, GPT models, or OpenRouter power the current report extraction. They do not. The product currently uses local deterministic mapping plus a local/demo voice workflow.
+Use this wording in the submission if asked about AI:
 
-## Recording and merging
+> “Codex was meaningfully used to build and test CyberSahay. The report workflow does not use an LLM to silently decide fields or submit a report: deterministic structured state maps facts, highlights missing information and requires user review. Government integration, identity verification and real case tracking are intentionally mocked.”
 
-1. Record the actual demo in 1080p with Windows Snipping Tool’s screen recorder, OBS, or Clipchamp. Keep browser zoom at 100% and use only synthetic incident details.
-2. Record the official public portal only long enough to establish the comparison. Do not log in, enter data, or imply the official portal is unsafe.
-3. Record the CyberSahay flow as one continuous take, then record the Kannada segment separately if needed.
-4. In Clipchamp: create a 16:9 1080p project; place the title card, official-portal clip, CyberSahay clips, then final card; trim to exactly two minutes; record the voiceover from the script above; add low-volume royalty-free music only if it does not obscure speech.
-5. Export as MP4, 1080p. Watch it once with sound off (captions/text clarity) and once with sound on (pace and privacy check).
+## Safety and scope
 
-## Public-demo limitations
-
-- This Vercel deployment is a frontend demo. Its local SQLite persistence, local voice service, and local upload storage do not run in Vercel’s static deployment.
-- It never represents a report as filed with NCRP/cybercrime.gov.in.
-- Use synthetic names, phone numbers, amounts, and evidence in the video.
+- Use only fictional/synthetic names, numbers, evidence and money amounts in the app and video.
+- Do not connect to or test a live government system.
+- Do not imply endorsement, official status or a filed government complaint.
+- The Render service is a demo backend, not an authorised government data processor.

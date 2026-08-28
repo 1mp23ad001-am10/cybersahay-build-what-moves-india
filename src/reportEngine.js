@@ -421,10 +421,29 @@ export function classify(text) {
   return best.name;
 }
 
+const STATE_ALIASES = [
+  ['Andhra Pradesh', /andhra pradesh|ಆಂಧ್ರ ಪ್ರದೇಶ/i], ['Arunachal Pradesh', /arunachal pradesh|ಅರುಣಾಚಲ ಪ್ರದೇಶ/i],
+  ['Assam', /\bassam\b|ಅಸ್ಸಾಂ/i], ['Bihar', /\bbihar\b|ಬಿಹಾರ/i], ['Chhattisgarh', /chhattisgarh|ಛತ್ತೀಸ್‌ಗಢ/i],
+  ['Goa', /\bgoa\b|ಗೋವಾ/i], ['Gujarat', /\bgujarat\b|ಗುಜರಾತ್/i], ['Haryana', /\bharyana\b|ಹರಿಯಾಣ/i],
+  ['Himachal Pradesh', /himachal pradesh|ಹಿಮಾಚಲ ಪ್ರದೇಶ/i], ['Jharkhand', /\bjharkhand\b|ಜಾರ್ಖಂಡ್/i],
+  ['Karnataka', /\bkarnataka\b|ಕರ್ನಾಟಕ/i], ['Kerala', /\bkerala\b|ಕೇರಳ/i], ['Madhya Pradesh', /madhya pradesh|ಮಧ್ಯ ಪ್ರದೇಶ/i],
+  ['Maharashtra', /\bmaharashtra\b|ಮಹಾರಾಷ್ಟ್ರ/i], ['Manipur', /\bmanipur\b|ಮಣಿಪುರ/i], ['Meghalaya', /\bmeghalaya\b|ಮೇಘಾಲಯ/i],
+  ['Mizoram', /\bmizoram\b|ಮಿಜೋರಾಂ/i], ['Nagaland', /\bnagaland\b|ನಾಗಾಲ್ಯಾಂಡ್/i], ['Odisha', /\bodisha\b|ಒಡಿಶಾ/i],
+  ['Punjab', /\bpunjab\b|ಪಂಜಾಬ್/i], ['Rajasthan', /\brajasthan\b|ರಾಜಸ್ಥಾನ/i], ['Sikkim', /\bsikkim\b|ಸಿಕ್ಕಿಂ/i],
+  ['Tamil Nadu', /tamil nadu|ತಮಿಳುನಾಡು/i], ['Telangana', /\btelangana\b|ತೆಲಂಗಾಣ/i], ['Tripura', /\btripura\b|ತ್ರಿಪುರಾ/i],
+  ['Uttar Pradesh', /uttar pradesh|ಉತ್ತರ ಪ್ರದೇಶ/i], ['Uttarakhand', /\budd?arakhand\b|ಉತ್ತರಾಖಂಡ/i], ['West Bengal', /west bengal|ಪಶ್ಚಿಮ ಬಂಗಾಳ/i],
+  ['Delhi', /\bdelhi\b|ದೆಹಲಿ/i], ['Jammu and Kashmir', /jammu and kashmir|ಜಮ್ಮು ಮತ್ತು ಕಾಶ್ಮೀರ/i], ['Ladakh', /\bladakh\b|ಲಡಾಖ್/i], ['Puducherry', /\bpuducherry\b|ಪುದುಚೇರಿ/i],
+];
+
+export function extractState(text) {
+  const value = String(text || '');
+  return STATE_ALIASES.find(([, pattern]) => pattern.test(value))?.[0] || '';
+}
+
 export function extractLocation(text) {
   const value = String(text || '');
-  const stateMatch = value.match(/\b(andhra pradesh|arunachal pradesh|assam|bihar|chhattisgarh|goa|gujarat|haryana|himachal pradesh|jharkhand|karnataka|kerala|madhya pradesh|maharashtra|manipur|meghalaya|mizoram|nagaland|odisha|punjab|rajasthan|sikkim|tamil nadu|telangana|tripura|uttar pradesh|uttarakhand|west bengal|delhi|jammu and kashmir|ladakh|puducherry)\b/i);
-  if (stateMatch?.[1]) return stateMatch[1].replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const state = extractState(value);
+  if (state) return state;
 
   const english = value.match(/(?:live\s+in|staying\s+in|i(?:'m| am)\s+in|near|in)\s+([^.,!?;]{2,60})/i);
   if (english?.[1]) {
@@ -578,11 +597,14 @@ export function extractCaseDetails(text) {
 }
 
 export function extractContactDetails(text) {
-  const value = String(text || '');
-  const name = value.match(/\b(?:my\s+name\s+is|i\s+am|i['’]m|this\s+is)\s+([a-z][a-z .'-]{1,60}?)(?=\s*(?:[,.]|and\b|my\s+(?:number|phone|mobile)|the\s+incident|$))/i)?.[1]
+  const value = String(text || '').replace(/[೦-೯]/g, (digit) => String('೦೧೨೩೪೫೬೭೮೯'.indexOf(digit)));
+  const englishName = value.match(/\b(?:my\s+(?:full\s+)?name\s+is|(?:my\s+)?name\s+is|i\s+am|i['’]m|this\s+is)\s+([a-z][a-z .'-]{1,60}?)(?=\s*(?:[,.]|and\b|my\s+(?:number|phone|mobile)|(?:the\s+)?incident|$))/i)?.[1];
+  const kannadaName = value.match(/(?:ನನ್ನ\s+ಹೆಸರು|ಹೆಸರು)\s+([\u0C80-\u0CFF\s]{2,60}?)(?=\s*(?:[,.!?।]|ಮತ್ತು|ನನ್ನ\s+(?:ಮೊಬೈಲ್|ಫೋನ್)|ಘಟನೆ|$))/u)?.[1];
+  const name = (englishName || kannadaName || '')
     ?.replace(/\s+/g, ' ')
     .trim() || '';
-  const phoneMatch = value.match(/\b(?:my\s+(?:number|phone(?:\s+number)?|mobile(?:\s+number)?)\s+is|contact(?:\s+number)?\s+is)\s*(?:\+?91[\s-]?)?([6-9][\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d)\b/i);
+  const phoneMatch = value.match(/\b(?:my\s+)?(?:number|phone(?:\s+(?:number|no\.?))?|mobile(?:\s+(?:number|no\.?))?|contact(?:\s+(?:number|no\.?)?)?)\s*(?:is|:|-)?\s*(?:\+?91[\s-]?)?([6-9](?:[\s-]?\d){9})\b/i)
+    || value.match(/(?:ನನ್ನ\s+)?(?:ಮೊಬೈಲ್|ಫೋನ್|ದೂರವಾಣಿ)\s*(?:ಸಂಖ್ಯೆ|ನಂಬರ್)?\s*(?:ಇದೆ|:|-)?\s*(?:\+?91[\s-]?)?([6-9](?:[\s-]?\d){9})\b/u);
   const phone = phoneMatch?.[1]?.replace(/\D/g, '') || '';
   const email = value.match(/\b(?:my\s+)?email(?:\s+(?:is|address is))?\s*[:=-]?\s*([\w.+-]+@[\w-]+\.[\w.-]+)\b/i)?.[1] || '';
   return { name, phone, email };

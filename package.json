@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build", "server": "node --env-file-if-exists=.env server/index.js" },
-  "dependencies": { "@vitejs/plugin-react": "latest", "better-sqlite3": "latest", "express": "latest", "openai": "latest", "react": "latest", "react-dom": "latest", "vite": "latest" },
+  "scripts": { "dev": "vite", "build": "vite build", "server": "node --env-file-if-exists=.env server/index.js", "test": "node scripts/reportEngine.test.mjs" },
+  "dependencies": { "@huggingface/transformers": "^3.8.1", "@vitejs/plugin-react": "latest", "better-sqlite3": "latest", "express": "latest", "openai": "latest", "react": "latest", "react-dom": "latest", "vite": "latest" },
   "devDependencies": {}
 }

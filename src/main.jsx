@@ -8,6 +8,7 @@ import {
   extractAmount,
   extractCaseDetails,
   extractContactDetails,
+  extractState,
 } from './reportEngine.js';
 import './styles.css';
 
@@ -85,6 +86,21 @@ const browserSpeechTranscript = (language) => new Promise((resolve, reject) => {
   recognition.start();
 });
 
+async function resampleSpeech(blob) {
+  const sourceContext = new AudioContext();
+  try {
+    const decoded = await sourceContext.decodeAudioData(await blob.arrayBuffer());
+    const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
+    const source = offline.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start();
+    return (await offline.startRendering()).getChannelData(0).slice();
+  } finally {
+    await sourceContext.close();
+  }
+}
+
 function App() {
   const [languagePreference, setLanguagePreference] = useState(() => localStorage.getItem('bwm-language-preference') || 'auto');
   const [lang, setLang] = useState(() => {
@@ -115,21 +131,44 @@ function App() {
   const incidentStopTimerRef = useRef(null);
   const attachmentInputRef = useRef(null);
   const languageSelectRef = useRef(null);
+  const offlineAsrWorkerRef = useRef(null);
+  const offlineAsrRequestRef = useRef(null);
   const ui = translatedCopy || copyFor(lang);
   const intakeGuide = INTAKE_GUIDE[langKey(lang)] || INTAKE_GUIDE.en;
   const voiceLanguage = { name: languageLabel(lang), code: lang.split('-')[0] };
+
+  function offlineSpeechTranscript(blob, language) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const samples = await resampleSpeech(blob);
+        const worker = offlineAsrWorkerRef.current || new Worker(new URL('./asrWorker.js', import.meta.url), { type: 'module' });
+        offlineAsrWorkerRef.current = worker;
+        const id = crypto.randomUUID();
+        offlineAsrRequestRef.current = { id, resolve, reject };
+        worker.onmessage = (event) => {
+          const message = event.data || {};
+          if (message.id !== offlineAsrRequestRef.current?.id) return;
+          if (message.type === 'status') { setStatus(message.message); return; }
+          offlineAsrRequestRef.current = null;
+          if (message.type === 'result') resolve(message.text);
+          else reject(new Error(message.message || 'Offline speech recognition failed.'));
+        };
+        worker.onerror = () => reject(new Error('Offline speech recognition could not start in this browser.'));
+        worker.postMessage({ id, samples: samples.buffer, language: language.split('-')[0] }, [samples.buffer]);
+      } catch (error) { reject(error); }
+    });
+  }
 
   const mappedDetails = useMemo(() => {
     const narrative = extractCaseDetails(input);
     const narrativeContact = extractContactDetails(input);
     const protectedIdentifiers = extractCaseDetails(sensitive);
-    const stateMatch = String(input).match(/\b(andhra pradesh|arunachal pradesh|assam|bihar|chhattisgarh|goa|gujarat|haryana|himachal pradesh|jharkhand|karnataka|kerala|madhya pradesh|maharashtra|manipur|meghalaya|mizoram|nagaland|odisha|punjab|rajasthan|sikkim|tamil nadu|telangana|tripura|uttar pradesh|uttarakhand|west bengal|delhi|jammu and kashmir|ladakh|puducherry)\b/i);
     const amount = extractAmount(input);
     return {
       ...emptyCaseDetails(),
       incidentDate: narrative.incidentDate,
       incidentTime: narrative.incidentTime,
-      state: stateMatch?.[1] ? stateMatch[1].replace(/\b\w/g, (letter) => letter.toUpperCase()) : '',
+      state: extractState(input),
       paymentSource: narrative.paymentSource,
       amount: amount === 'Not stated' ? '' : amount.replace(/[₹,]/g, ''),
       // Never infer protected IDs from voice. They are mapped only from the typed protected field.
@@ -328,10 +367,11 @@ function App() {
 
         try {
           const requestedLanguage = languagePreference === 'auto' ? 'unknown' : lang;
+          const audio = new Blob(chunksRef.current, { type: mime });
           const response = await fetch(`/api/transcribe?lang=${encodeURIComponent(requestedLanguage)}`, {
             method: 'POST',
             headers: { 'content-type': mime },
-            body: new Blob(chunksRef.current, { type: mime }),
+            body: audio,
           });
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || 'Transcription failed.');
@@ -353,8 +393,17 @@ function App() {
             setInput((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
             setStatus('Browser voice transcript added.');
           } catch (browserError) {
-            setStatus('');
-            setError(browserError.message || err.message || 'Transcription failed. You can type instead.');
+            try {
+              const fallbackLanguage = supportedVoiceLanguage(languagePreference === 'auto' ? lang : languagePreference);
+              const transcript = await offlineSpeechTranscript(audio, fallbackLanguage);
+              if (!transcript) throw new Error('No speech was recognised. Please retry or type your report.');
+              if (!hasExpectedScript(transcript, fallbackLanguage.split('-')[0])) throw new Error(`${languageLabel(fallbackLanguage)} speech was not recognised correctly. It was not added; please retry.`);
+              setInput((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
+              setStatus('Offline voice transcript added.');
+            } catch (offlineError) {
+              setStatus('');
+              setError(offlineError.message || browserError.message || err.message || 'Transcription failed. You can type instead.');
+            }
           }
         }
       };

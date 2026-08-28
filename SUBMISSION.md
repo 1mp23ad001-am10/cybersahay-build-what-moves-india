@@ -3,7 +3,7 @@
 ## Public links
 
 - Repository: https://github.com/1mp23ad001-am10/cybersahay-build-what-moves-india
-- App: add the Render public URL here after the service is live.
+- App: https://cybersahay-build-what-moves-india.onrender.com
 
 ## Project summary (218 words)
 
@@ -11,7 +11,7 @@ CyberSahay is an independent hackathon prototype that rethinks one stressful pub
 
 The complete Financial Fraud journey works with synthetic data: choose a route, describe the incident, see required and optional information, add protected identifiers separately, attach evidence, review masked values and receive a clearly labelled local-demo reference. It supports English, Hindi and Kannada UI, recognises common Kannada date and time phrases, includes a 1930/bank warning for financial fraud, and never asks for OTPs, passwords, PINs or full card numbers.
 
-This is not an official government site and does not file a complaint with NCRP. Government integrations, identity verification and official case tracking are deliberately mocked. The public deployment runs a React/Vite client with an Express API, SQLite draft storage, evidence storage and health checks on Render. Codex was used meaningfully to build, test and deploy the journey; the final workflow keeps the citizen in control because structured state and explicit review, not an LLM, decide what is missing or submitted.
+This is not an official government site and does not file a complaint with NCRP. Government integrations, identity verification and official case tracking are deliberately mocked. The public deployment runs a React/Vite client with an Express API, SQLite draft storage, evidence storage and health checks on Render. The free host can sleep and does not guarantee draft or upload persistence after a restart. Codex was used meaningfully to build, test and deploy the journey; the final workflow keeps the citizen in control because structured state and explicit review, not an LLM, decide what is missing or submitted.
 
 ## Exact two-minute narration and shot list
 
@@ -27,7 +27,7 @@ Record a real 1080p browser session with **synthetic data only**. The first minu
 | 0:53–1:00 | Brief Kannada narrative showing date/time mapping. | “The same journey supports English, Hindi and Kannada, including common Kannada date and time phrasing.” |
 | 1:00–1:12 | Show protected-details section and masked review; do not type a real identifier. | “Privacy is built into the flow: protected identifiers are separate, review values are masked, and the product never asks for an OTP, PIN, password or full card number.” |
 | 1:12–1:26 | Show evidence list, final review, then local-demo reference. | “The end-to-end journey works today with mock data: route, incident, evidence, protected review and a clearly labelled local-demo reference. It never claims that a government complaint was filed.” |
-| 1:26–1:42 | Show a simple architecture slide: React/Vite → Express API → Render disk/SQLite. | “Behind the interface, the public build uses React and Vite with an Express API. Render hosts the full service, while persistent storage keeps the synthetic local draft and evidence data across restarts.” |
+| 1:26–1:42 | Show a simple architecture slide: React/Vite → Express API → Render. | “Behind the interface, the public build uses React and Vite with an Express API. Render hosts the full service and health checks; the free deployment may sleep and its local demo data is not guaranteed to persist after a restart.” |
 | 1:42–1:54 | Show the checklist and source code briefly. | “I used Codex as a meaningful build partner: to build the workflow, add multilingual date-and-time extraction, preserve state across edits, test the production build and deploy the service. I reviewed the product choices and tested the user journey myself.” |
 | 1:54–2:00 | End card: **Clearer. Calmer. Reviewable.** | “CyberSahay does not replace an official portal. It shows how a safer intake layer can help a citizen arrive at a reviewable report with less confusion.” |
 

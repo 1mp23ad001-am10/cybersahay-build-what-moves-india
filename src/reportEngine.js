@@ -537,6 +537,12 @@ export function extractCaseDetails(text) {
     if (first.length === 4) addDate(last, kannadaMonths[monthName], first);
     else addDate(first, kannadaMonths[monthName], last);
   }
+  const englishMonths = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+  const englishMonthNames = Object.keys(englishMonths).join('|');
+  for (const match of value.matchAll(new RegExp(`(?<![a-z])(?:(\\d{1,2})(?:st|nd|rd|th)?\\s+(${englishMonthNames})\\s+(\\d{2,4})|(${englishMonthNames})\\s+(\\d{1,2})(?:st|nd|rd|th)?[,]?\\s+(\\d{2,4}))(?![a-z])`, 'gi'))) {
+    const [, firstDay, firstMonth, firstYear, secondMonth, secondDay, secondYear] = match;
+    addDate(firstDay || secondDay, englishMonths[(firstMonth || secondMonth).toLowerCase()], firstYear || secondYear);
+  }
   let incidentDate = dateCandidates[0] || '';
   if (!incidentDate && /\btoday\b|आज|ಇಂದು/i.test(value)) {
     incidentDate = asIsoDate(today);

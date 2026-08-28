@@ -12,7 +12,7 @@ import {
 } from './reportEngine.js';
 import './styles.css';
 
-const APP_VERSION = 'cyber-report-v5-portal-intake';
+const APP_VERSION = 'cyber-report-v6-clean-voice-draft';
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENTS = 10;
 const emptyCaseDetails = () => ({ incidentDate: '', incidentTime: '', state: '', paymentSource: '', transactionId: '', amount: '', transactionCount: '1', payerBank: '', payeeBank: '', payeeUpi: '', paymentApp: '', suspectPhone: '', suspectUpi: '', suspectAccount: '', platform: '', url: '', handle: '', syntheticType: '', syntheticHarm: '' });
@@ -224,6 +224,13 @@ function App() {
   const missingFields = checklist.required.filter((item) => !item.complete);
 
   const draftId = useMemo(() => {
+    const versionChanged = localStorage.getItem('bwm-app-version') !== APP_VERSION;
+    if (versionChanged) {
+      localStorage.removeItem('bwm-input');
+      localStorage.removeItem('bwm-sensitive');
+      localStorage.removeItem('bwm-id');
+      localStorage.setItem('bwm-app-version', APP_VERSION);
+    }
     let stored = localStorage.getItem('bwm-id');
     if (!stored) {
       stored = crypto.randomUUID();
@@ -543,6 +550,8 @@ function App() {
     setReference('');
     setStatus('');
     setError('');
+    localStorage.removeItem('bwm-input');
+    localStorage.removeItem('bwm-sensitive');
   }
 
   if (report) {

@@ -598,7 +598,7 @@ export function extractCaseDetails(text) {
 
 export function extractContactDetails(text) {
   const value = String(text || '').replace(/[೦-೯]/g, (digit) => String('೦೧೨೩೪೫೬೭೮೯'.indexOf(digit)));
-  const englishName = value.match(/\b(?:my\s+(?:full\s+)?name\s+is|(?:my\s+)?name\s+is|i\s+am|i['’]m|this\s+is)\s+([a-z][a-z .'-]{1,60}?)(?=\s*(?:[,.]|and\b|my\s+(?:number|phone|mobile)|(?:the\s+)?incident|$))/i)?.[1];
+  const englishName = value.match(/\b(?:my\s+(?:full\s+)?name\s+is|(?:my\s+)?name\s+is|i['’]m)\s+([a-z][a-z .'-]{1,60}?)(?=\s*(?:[,.]|and\b|my\s+(?:number|phone|mobile)|(?:the\s+)?incident|$))/i)?.[1];
   const kannadaName = value.match(/(?:ನನ್ನ\s+ಹೆಸರು|ಹೆಸರು)\s+([\u0C80-\u0CFF\s]{2,60}?)(?=\s*(?:[,.!?।]|ಮತ್ತು|ನನ್ನ\s+(?:ಮೊಬೈಲ್|ಫೋನ್)|ಘಟನೆ|$))/u)?.[1];
   const name = (englishName || kannadaName || '')
     ?.replace(/\s+/g, ' ')

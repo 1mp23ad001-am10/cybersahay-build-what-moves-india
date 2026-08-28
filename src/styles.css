@@ -229,6 +229,55 @@ h1 em {
   text-transform: uppercase;
 }
 
+.live-checklist {
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid #d4dcd2;
+  background: #fff;
+  box-shadow: 8px 8px 0 #dce4dc;
+}
+
+.checklist-heading {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.checklist-heading h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+.checklist-heading p { margin: 6px 0 0; color: #61716d; line-height: 1.5; }
+
+.checklist-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.checklist-groups > div { padding: 15px; background: #f7faf7; }
+.checklist-groups > div > strong { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
+.checklist-groups ul { margin: 11px 0 0; padding: 0; list-style: none; }
+.checklist-groups li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; padding: 8px 0; color: #73827d; border-top: 1px solid #e2e9e2; }
+.checklist-groups li span { font-weight: 800; }
+.checklist-groups li b { display: block; font-size: 14px; font-weight: 600; }
+.checklist-groups li small { display: block; margin-top: 3px; color: #bd442b; font-family: Manrope, sans-serif; font-size: 12px; letter-spacing: 0; text-transform: none; }
+.checklist-groups li.done { color: #25664d; }
+.checklist-groups li.done span { color: #16804d; }
+.checklist-groups li.missing span { color: #e65a2e; }
+
+.checklist-next {
+  display: grid;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 13px 15px;
+  border-left: 4px solid #e65a2e;
+  background: #fff4ed;
+}
+.checklist-next strong { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
+.checklist-next span { color: #5b504a; line-height: 1.45; }
+.checklist-next.complete { border-left-color: #16804d; background: #edf7f0; }
+
+.live-map-note { margin: 12px 0 0; color: #416f73; font-family: 'DM Mono', monospace; font-size: 11px; }
+
 .guide-columns span,
 .missing-panel span { color: #415650; line-height: 1.5; }
 
@@ -723,11 +772,13 @@ footer {
 }
 
 .high-contrast .intake-guide,
+.high-contrast .live-checklist,
 .high-contrast .frozen-note,
 .high-contrast .missing-panel,
 .high-contrast .correction-panel,
 .high-contrast .final-check { color: #fff; background: #080d0e; border-color: #fff; }
 .high-contrast .intake-guide p,
+.high-contrast .checklist-heading p,
 .high-contrast .guide-columns span,
 .high-contrast .missing-panel span,
 .high-contrast .correction-panel p { color: #fff; }
@@ -760,7 +811,9 @@ footer {
   }
 
   .intake-guide,
+  .checklist-heading,
   .guide-columns,
+  .checklist-groups,
   .correction-row { display: block; }
 
   .guide-number { margin-bottom: 12px; }

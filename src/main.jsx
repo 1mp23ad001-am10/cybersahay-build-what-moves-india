@@ -5,6 +5,7 @@ import {
   LANGS,
   buildReport,
   classify,
+  extractAmount,
   extractCaseDetails,
 } from './reportEngine.js';
 import './styles.css';
@@ -79,8 +80,6 @@ function App() {
   const [sensitive, setSensitive] = useState(storedDraftValue('bwm-sensitive'));
   const [contact, setContact] = useState({ name: '', phone: '', email: '' });
   const [caseDetails, setCaseDetails] = useState(emptyCaseDetails);
-  const [intakeLocked, setIntakeLocked] = useState(false);
-  const [correction, setCorrection] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [recording, setRecording] = useState(false);
   const [status, setStatus] = useState('');
@@ -102,6 +101,48 @@ function App() {
   const ui = translatedCopy || copyFor(lang);
   const intakeGuide = INTAKE_GUIDE[langKey(lang)] || INTAKE_GUIDE.en;
   const voiceLanguage = { name: languageLabel(lang), code: lang.split('-')[0] };
+
+  const mappedDetails = useMemo(() => {
+    const narrative = extractCaseDetails(input);
+    const protectedIdentifiers = extractCaseDetails(sensitive);
+    const stateMatch = String(input).match(/\b(andhra pradesh|arunachal pradesh|assam|bihar|chhattisgarh|goa|gujarat|haryana|himachal pradesh|jharkhand|karnataka|kerala|madhya pradesh|maharashtra|manipur|meghalaya|mizoram|nagaland|odisha|punjab|rajasthan|sikkim|tamil nadu|telangana|tripura|uttar pradesh|uttarakhand|west bengal|delhi|jammu and kashmir|ladakh|puducherry)\b/i);
+    const amount = extractAmount(input);
+    return {
+      ...emptyCaseDetails(),
+      incidentDate: narrative.incidentDate,
+      incidentTime: narrative.incidentTime,
+      state: stateMatch?.[1] ? stateMatch[1].replace(/\b\w/g, (letter) => letter.toUpperCase()) : '',
+      paymentSource: narrative.paymentSource,
+      amount: amount === 'Not stated' ? '' : amount.replace(/[₹,]/g, ''),
+      // Never infer protected IDs from voice. They are mapped only from the typed protected field.
+      transactionId: protectedIdentifiers.transactionId,
+    };
+  }, [input, sensitive]);
+
+  useEffect(() => { setCaseDetails(mappedDetails); }, [mappedDetails]);
+
+  const checklist = useMemo(() => {
+    const required = [
+      { label: 'Incident account', complete: Boolean(input.trim()), prompt: 'Briefly describe what happened.' },
+      { label: ui.incidentDate, complete: Boolean(mappedDetails.incidentDate), prompt: 'Add the incident date.' },
+      { label: ui.incidentTime, complete: Boolean(mappedDetails.incidentTime), prompt: 'Add the incident time.' },
+      { label: ui.state, complete: Boolean(mappedDetails.state), prompt: 'Add the State / UT where it happened.' },
+      { label: ui.name || 'Full name', complete: Boolean(contact.name.trim()), prompt: 'Enter your full name below.' },
+      { label: ui.mobile || 'Indian mobile number', complete: /^\d{10}$/.test(contact.phone.replace(/\D/g, '')), prompt: 'Enter a valid 10-digit mobile number below.' },
+    ];
+    if (route === 'financial') required.splice(4, 0,
+      { label: ui.exactAmount, complete: Boolean(mappedDetails.amount), prompt: 'Say or type the exact loss amount in the incident box.' },
+      { label: ui.paymentSource, complete: Boolean(mappedDetails.paymentSource), prompt: 'Say or type the bank, wallet, or merchant in the incident box.' },
+      { label: ui.transactionId, complete: Boolean(mappedDetails.transactionId), prompt: 'Type the transaction / UTR reference safely in Protected details.' },
+    );
+    const optional = [
+      { label: route === 'financial' ? 'Payment app, destination, or suspect account' : 'Platform or app involved', complete: /\b(phonepe|gpay|google pay|paytm|bhim|whatsapp|instagram|facebook|telegram|website|app)\b/i.test(input) },
+      { label: 'Suspect handle, URL, email, or phone number', complete: /https?:\/\/|\b(?:@\w+|\d{10}|[\w.+-]+@[\w-]+\.)/i.test(`${input} ${sensitive}`) },
+      { label: 'Screenshots, chats, emails, statements, or other evidence', complete: attachments.length > 0 },
+    ];
+    return { required, optional };
+  }, [attachments.length, contact.name, contact.phone, input, mappedDetails, route, sensitive, ui]);
+  const missingFields = checklist.required.filter((item) => !item.complete);
 
   const draftId = useMemo(() => {
     let stored = localStorage.getItem('bwm-id');
@@ -298,92 +339,8 @@ function App() {
     }
     setError('');
     setReference('');
-    const inferred = extractCaseDetails(input);
-    const resolvedDetails = {
-      ...caseDetails,
-      incidentDate: caseDetails.incidentDate || inferred.incidentDate,
-      incidentTime: caseDetails.incidentTime || inferred.incidentTime,
-      paymentSource: caseDetails.paymentSource || inferred.paymentSource,
-      transactionId: caseDetails.transactionId || inferred.transactionId,
-    };
-    setCaseDetails(resolvedDetails);
-    setReport(buildReport({ text: input, sensitive, caseDetails: resolvedDetails, attachments, route, contact }));
+    setReport(buildReport({ text: input, sensitive, caseDetails: mappedDetails, attachments, route, contact }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function mapIncident() {
-    if (!input.trim()) {
-      setError(ui.addIncidentError || 'Add the incident details first.');
-      return;
-    }
-    const inferred = extractCaseDetails(input);
-    setCaseDetails((current) => ({
-      ...current,
-      incidentDate: current.incidentDate || inferred.incidentDate,
-      incidentTime: current.incidentTime || inferred.incidentTime,
-      paymentSource: current.paymentSource || inferred.paymentSource,
-      transactionId: current.transactionId || inferred.transactionId,
-    }));
-    setIntakeLocked(true);
-    setError('');
-    setStatus('Report mapped. Complete the requested detail below.');
-  }
-
-  function normaliseDate(value) {
-    const match = String(value).trim().match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-    if (!match) return String(value).trim();
-    const [, day, month, rawYear] = match;
-    return `${rawYear.length === 2 ? `20${rawYear}` : rawYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  function normaliseTime(value) {
-    const match = String(value).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
-    if (!match) return String(value).trim();
-    let hour = Number(match[1]);
-    if (match[3]?.toLowerCase() === 'pm' && hour < 12) hour += 12;
-    if (match[3]?.toLowerCase() === 'am' && hour === 12) hour = 0;
-    return `${String(hour).padStart(2, '0')}:${match[2] || '00'}`;
-  }
-
-  function applyCorrection() {
-    const request = correction.trim();
-    const match = request.match(/(?:change|set|update|correct)\s+(?:the\s+)?(incident\s+date|date|incident\s+time|time|state|location|loss(?:\s+amount)?|amount|bank|wallet|merchant|transaction(?:\s*(?:id|reference))?|utr|name|phone|mobile|email)\s*(?:to|as|is)?\s+(.+)/i);
-    if (!match) {
-      setError(intakeGuide.correctionNeedField);
-      return;
-    }
-    const field = match[1].toLowerCase();
-    const value = match[2].trim().replace(/[.。]$/, '');
-    if (/date/.test(field)) updateCaseDetail('incidentDate', normaliseDate(value));
-    else if (/time/.test(field)) updateCaseDetail('incidentTime', normaliseTime(value));
-    else if (/state|location/.test(field)) updateCaseDetail('state', value);
-    else if (/loss|amount/.test(field)) updateCaseDetail('amount', value.replace(/[₹,]/g, ''));
-    else if (/bank|wallet|merchant/.test(field)) updateCaseDetail('paymentSource', value);
-    else if (/transaction|utr/.test(field)) updateCaseDetail('transactionId', value);
-    else if (/name/.test(field)) updateContact('name', value);
-    else if (/phone|mobile/.test(field)) updateContact('phone', value);
-    else if (/email/.test(field)) updateContact('email', value);
-    setCorrection('');
-    setError('');
-    setStatus(intakeGuide.correctionApplied);
-  }
-
-  const missingFields = useMemo(() => {
-    if (!intakeLocked) return [];
-    const missing = [];
-    if (!caseDetails.incidentDate) missing.push(ui.incidentDate);
-    if (!caseDetails.incidentTime) missing.push(ui.incidentTime);
-    if (!caseDetails.state.trim()) missing.push(ui.state);
-    if (route === 'financial') {
-      if (!caseDetails.amount) missing.push(ui.exactAmount);
-      if (!caseDetails.paymentSource.trim()) missing.push(ui.paymentSource);
-      if (!caseDetails.transactionId.trim()) missing.push(ui.transactionId);
-    }
-    return missing;
-  }, [intakeLocked, caseDetails, route, ui]);
-
-  function updateCaseDetail(key, value) {
-    setCaseDetails((current) => ({ ...current, [key]: value }));
   }
   function updateContact(key, value) {
     setContact((current) => ({ ...current, [key]: value }));
@@ -465,8 +422,6 @@ function App() {
       setCaseDetails(emptyCaseDetails());
       setContact({ name: '', phone: '', email: '' });
       setAttachments([]);
-      setIntakeLocked(false);
-      setCorrection('');
       localStorage.removeItem('bwm-input');
       localStorage.removeItem('bwm-sensitive');
     } catch (err) {
@@ -482,8 +437,6 @@ function App() {
     setCaseDetails(emptyCaseDetails());
     setContact({ name: '', phone: '', email: '' });
     setAttachments([]);
-    setIntakeLocked(false);
-    setCorrection('');
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
     setReport(null);
     setReference('');
@@ -558,7 +511,7 @@ function App() {
 
           <p className="disclaimer">{ui.draftNote}</p>
           <div className="actions">
-            <button className="secondary" onClick={() => { setReport(null); setIntakeLocked(true); setStatus(intakeGuide.frozen); }}>{ui.edit}</button>
+            <button className="secondary" onClick={() => { setReport(null); setStatus('Update the incident details and the checklist will map again.'); }}>{ui.edit}</button>
             <button className="primary" onClick={() => setConfirmOpen(true)}>{ui.submit}</button>
           </div>
         </section>
@@ -586,7 +539,7 @@ function App() {
               </label>
               <p className="final-check">{intakeGuide.finalCheck}</p>
               <div className="modal-actions">
-                <button className="secondary" onClick={() => { setConfirmOpen(false); setReport(null); setIntakeLocked(true); setStatus(intakeGuide.frozen); }}>{intakeGuide.reviewCorrection}</button>
+                <button className="secondary" onClick={() => { setConfirmOpen(false); setReport(null); setStatus('Update the incident details and the checklist will map again.'); }}>{intakeGuide.reviewCorrection}</button>
                 <button className="quiet" onClick={() => setConfirmOpen(false)}>{ui.cancel}</button>
                 <button className="primary" disabled={!confirmed || submitting} onClick={submitReport}>
                   {submitting ? ui.submitting : ui.confirmSubmit}
@@ -662,6 +615,21 @@ function App() {
           </div>
         </section>
 
+        <section className="live-checklist" aria-live="polite" aria-labelledby="checklist-title">
+          <div className="checklist-heading"><span className="guide-number">02</span><div><h2 id="checklist-title">Live report checklist</h2><p>Speak or type in the incident details box. The checklist maps facts as they appear; no extra incident-detail boxes are needed.</p></div></div>
+          <div className="checklist-groups">
+            <div>
+              <strong>Required before review</strong>
+              <ul>{checklist.required.map((item) => <li className={item.complete ? 'done' : 'missing'} key={item.label}><span>{item.complete ? '✓' : '○'}</span><div><b>{item.label}</b>{!item.complete && <small>{item.prompt}</small>}</div></li>)}</ul>
+            </div>
+            <div>
+              <strong>Optional — no need to fill these now</strong>
+              <ul>{checklist.optional.map((item) => <li className={item.complete ? 'done' : ''} key={item.label}><span>{item.complete ? '✓' : '—'}</span><div><b>{item.label}</b></div></li>)}</ul>
+            </div>
+          </div>
+          <div className={`checklist-next ${missingFields.length ? '' : 'complete'}`}><strong>{missingFields.length ? 'Next detail needed' : 'Ready for review'}</strong><span>{missingFields.length ? missingFields[0].prompt : 'All required details are mapped. Optional evidence can still strengthen the report.'}</span></div>
+        </section>
+
         <section className="case-panel core-panel">
           <label>{ui.contact || 'Contact for a tracked local draft'}</label>
           <p>{ui.contactHint || 'The official portal verifies a mobile number by OTP. This local demo cannot verify or submit to government; enter a contact only so this local draft is reviewable.'}</p>
@@ -679,22 +647,15 @@ function App() {
             <textarea
               id="incident"
               value={input}
-              onChange={(event) => { setInput(event.target.value); setIntakeLocked(false); }}
+              onChange={(event) => setInput(event.target.value)}
               placeholder={ui.placeholder}
-              readOnly={intakeLocked}
-              aria-describedby={intakeLocked ? 'story-frozen-note' : undefined}
             />
-            {!intakeLocked && <button className={recording ? 'recording mic' : 'mic'} onClick={recordIncident} type="button" aria-pressed={recording} aria-label={`${recording ? 'Stop' : 'Start'} ${voiceLanguage.name} voice input`}>
+            <button className={recording ? 'recording mic' : 'mic'} onClick={recordIncident} type="button" aria-pressed={recording} aria-label={`${recording ? 'Stop' : 'Start'} ${voiceLanguage.name} voice input`}>
               {recording ? ui.stop : ui.speak}
-            </button>}
+            </button>
           </div>
-          {intakeLocked ? <div className="frozen-note" id="story-frozen-note"><span>{intakeGuide.frozen}</span><button className="quiet" type="button" onClick={() => setIntakeLocked(false)}>{intakeGuide.changeStory}</button></div> : <button className="map-button" type="button" onClick={mapIncident}>{intakeGuide.analyse}</button>}
+          <p className="live-map-note">{input.trim() ? 'Mapping live from your incident details.' : 'Start speaking or typing and the checklist will update live.'}</p>
         </section>
-
-        {intakeLocked && <section className={`missing-panel ${missingFields.length ? '' : 'complete'}`} aria-live="polite">
-          <div><strong>{missingFields.length ? intakeGuide.missing : intakeGuide.allPresent}</strong><span>{missingFields.length ? missingFields[0] : ' '}</span></div>
-          {missingFields.length > 1 && <small>{missingFields.slice(1).join(' · ')}</small>}
-        </section>}
 
         <section className="sensitive-panel">
           <label htmlFor="protected">{ui.sensitiveLabel}</label>
@@ -709,37 +670,6 @@ function App() {
           </div>
         </section>
 
-        {intakeLocked && <section className="correction-panel">
-          <label htmlFor="correction">{intakeGuide.correctionLabel}</label>
-          <p>{intakeGuide.correctionHint}</p>
-          <div className="correction-row"><input id="correction" value={correction} onChange={(event) => setCorrection(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') applyCorrection(); }} placeholder={intakeGuide.correctionPlaceholder} /><button className="secondary" type="button" onClick={applyCorrection}>{intakeGuide.applyCorrection}</button></div>
-        </section>}
-
-        <details className="case-panel advanced-details" open={intakeLocked}>
-          <summary>{ui.caseDetails}</summary>
-          <p>{ui.caseHint}</p>
-          <div className="detail-grid">
-            <label>{ui.incidentDate}<input type="date" value={caseDetails.incidentDate} onChange={(event) => updateCaseDetail('incidentDate', event.target.value)} /></label>
-            <label>{ui.incidentTime}<input type="time" value={caseDetails.incidentTime} onChange={(event) => updateCaseDetail('incidentTime', event.target.value)} /></label>
-            <label>{ui.state}<input value={caseDetails.state} onChange={(event) => updateCaseDetail('state', event.target.value)} placeholder={ui.statePlaceholder} /></label>
-            <label>{ui.exactAmount}<input inputMode="decimal" value={caseDetails.amount} onChange={(event) => updateCaseDetail('amount', event.target.value)} placeholder={ui.amountPlaceholder} /></label>
-            <label>{ui.paymentSource}<input value={caseDetails.paymentSource} onChange={(event) => updateCaseDetail('paymentSource', event.target.value)} placeholder={ui.paymentPlaceholder} /></label>
-            <label>{ui.transactionId}<input value={caseDetails.transactionId} onChange={(event) => updateCaseDetail('transactionId', event.target.value)} placeholder={ui.transactionPlaceholder} /></label>
-            {route === 'financial' && <>
-              <label>{ui.transactionCount || 'Number of transactions'}<input inputMode="numeric" value={caseDetails.transactionCount} onChange={(event) => updateCaseDetail('transactionCount', event.target.value)} /></label>
-              <label>{ui.paymentApp || 'Payment app used'}<input value={caseDetails.paymentApp} onChange={(event) => updateCaseDetail('paymentApp', event.target.value)} placeholder="GPay / PhonePe / Paytm / bank" /></label>
-              <label>{ui.payerBank || 'Payer bank / wallet'}<input value={caseDetails.payerBank} onChange={(event) => updateCaseDetail('payerBank', event.target.value)} /></label>
-              <label>{ui.payeeBank || 'Payee bank / wallet'}<input value={caseDetails.payeeBank} onChange={(event) => updateCaseDetail('payeeBank', event.target.value)} /></label>
-              <label>{ui.payeeUpi || 'Payee UPI ID / account (type exactly)'}<input value={caseDetails.payeeUpi} onChange={(event) => updateCaseDetail('payeeUpi', event.target.value)} /></label>
-            </>}
-            {route !== 'financial' && <>
-              <label>{ui.platform || 'Platform / app involved'}<input value={caseDetails.platform} onChange={(event) => updateCaseDetail('platform', event.target.value)} /></label>
-              <label>{ui.url || 'URL or profile link'}<input type="url" value={caseDetails.url} onChange={(event) => updateCaseDetail('url', event.target.value)} /></label>
-              <label>{ui.handle || 'Suspect handle / account name'}<input value={caseDetails.handle} onChange={(event) => updateCaseDetail('handle', event.target.value)} /></label>
-              <label>{ui.suspectPhone || 'Suspect phone / UPI / account'}<input value={caseDetails.suspectPhone} onChange={(event) => updateCaseDetail('suspectPhone', event.target.value)} /></label>
-            </>}
-          </div>
-        </details>
 
         <section className="evidence-panel">
           <label htmlFor="evidence-files">{ui.attachments}</label>
@@ -761,7 +691,7 @@ function App() {
 
         <div className="actions">
           <button className="quiet" onClick={clearAll}>{ui.clear}</button>
-          <button className="primary" onClick={makeReport} disabled={!intakeLocked || missingFields.length > 0}>{ui.build}</button>
+          <button className="primary" onClick={makeReport} disabled={missingFields.length > 0}>{ui.build}</button>
         </div>
       </section>
 

@@ -1,0 +1,5 @@
+.env
+cybersahay.db
+node_modules
+dist
+uploads

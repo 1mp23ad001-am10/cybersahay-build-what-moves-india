@@ -68,6 +68,22 @@ const copyFor = (lang) => COPY[langKey(lang)] || COPY.en;
 const storedDraftValue = (key) => (
   localStorage.getItem('bwm-app-version') === APP_VERSION ? localStorage.getItem(key) || '' : ''
 );
+const browserSpeechTranscript = (language) => new Promise((resolve, reject) => {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    reject(new Error('Voice transcription is unavailable in this browser. Please type your report.'));
+    return;
+  }
+  const recognition = new Recognition();
+  recognition.lang = language;
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onresult = (event) => resolve(String(event.results?.[0]?.[0]?.transcript || '').trim());
+  recognition.onerror = (event) => reject(new Error(`Browser voice recognition failed (${event.error}). Please type your report.`));
+  recognition.onnomatch = () => reject(new Error('No speech was recognised. Please retry or type your report.'));
+  recognition.start();
+});
 
 function App() {
   const [languagePreference, setLanguagePreference] = useState(() => localStorage.getItem('bwm-language-preference') || 'auto');
@@ -327,8 +343,19 @@ function App() {
           setInput((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
           setStatus(ui.transcript);
         } catch (err) {
-          setStatus('');
-          setError(err.message || 'Transcription failed. You can type instead.');
+          try {
+            setStatus('Trying browser voice recognition…');
+            const fallbackLanguage = supportedVoiceLanguage(languagePreference === 'auto' ? lang : languagePreference);
+            const transcript = await browserSpeechTranscript(fallbackLanguage);
+            if (!transcript) throw new Error('No speech was recognised. Please retry or type your report.');
+            const browserLanguage = fallbackLanguage.split('-')[0];
+            if (!hasExpectedScript(transcript, browserLanguage)) throw new Error(`${languageLabel(fallbackLanguage)} speech was not recognised correctly. It was not added; please retry.`);
+            setInput((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
+            setStatus('Browser voice transcript added.');
+          } catch (browserError) {
+            setStatus('');
+            setError(browserError.message || err.message || 'Transcription failed. You can type instead.');
+          }
         }
       };
 

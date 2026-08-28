@@ -132,44 +132,6 @@ app.post('/api/transcribe', express.raw({type:['audio/webm','audio/ogg','audio/w
   return res.status(502).json({error:'Sarvam transcription is unavailable. Please retry in a moment or type your report.'});
 });
 app.post('/api/speak', async (req,res) => { const key=process.env.OPENROUTER_API_KEY; if (!key) return res.status(503).end(); try { const client=new OpenAI({apiKey:key,baseURL:'https://openrouter.ai/api/v1',defaultHeaders:{'HTTP-Referer':'http://localhost:5174','X-Title':'CyberSahay'}}); const audio=await client.audio.speech.create({model:process.env.OPENROUTER_TTS_MODEL||'fish-audio/s2.1-pro-free:free',voice:process.env.OPENROUTER_TTS_VOICE||'default',input:String(req.body.text||'').slice(0,4096),response_format:'mp3'}); res.set('content-type','audio/mpeg').send(Buffer.from(await audio.arrayBuffer())); } catch { res.status(502).end(); } });
-app.post('/api/extract-report', async (req, res) => {
-  const original = String(req.body?.text || '').slice(0, 5000);
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!original.trim()) return res.json({ fields: {} });
-  if (!key) return res.status(503).json({ error: 'AI report mapping is unavailable.' });
-
-  // Do not transmit phone numbers, email addresses, UPI IDs, account numbers, or transaction references to the AI provider.
-  const safeText = original
-    .replace(/\b[6-9]\d{9}\b/g, '[PHONE REDACTED]')
-    .replace(/\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g, '[EMAIL REDACTED]')
-    .replace(/\b[\w.-]+@(?:ok\w+|ybl|ibl|axl|paytm|upi)\b/gi, '[UPI REDACTED]')
-    .replace(/\b(?:UTR|transaction(?:\s+id)?|reference)\s*[:#-]?\s*[a-z0-9-]{6,}\b/gi, '[TRANSACTION REFERENCE REDACTED]');
-  try {
-    const client = new OpenAI({ apiKey: key, baseURL: 'https://openrouter.ai/api/v1', defaultHeaders: { 'HTTP-Referer': 'http://localhost:5174', 'X-Title': 'CyberSahay' } });
-    const completion = await client.chat.completions.create({
-      model: process.env.OPENROUTER_EXTRACTION_MODEL || 'z-ai/glm-5.2:free',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: 'Extract report facts from an Indian cybercrime narrative in any Indian language, including Kannada. Return JSON only: {"incidentDate":"YYYY-MM-DD or empty","incidentTime":"HH:MM 24-hour or empty","state":"Indian State or UT or empty","amount":"number only or empty","paymentSource":"bank/wallet/merchant or empty","contactName":"name or empty","dateAmbiguous":boolean}. Do not infer or return phone numbers, emails, UPI IDs, account numbers, OTPs, passwords, card numbers, or transaction IDs. If there are conflicting possible incident dates, set dateAmbiguous true and incidentDate empty.' },
-        { role: 'user', content: safeText },
-      ],
-    });
-    const raw = JSON.parse(completion.choices?.[0]?.message?.content || '{}');
-    const fields = {
-      incidentDate: /^\d{4}-\d{2}-\d{2}$/.test(raw.incidentDate || '') ? raw.incidentDate : '',
-      incidentTime: /^\d{2}:\d{2}$/.test(raw.incidentTime || '') ? raw.incidentTime : '',
-      state: String(raw.state || '').slice(0, 80),
-      amount: String(raw.amount || '').replace(/[^\d.]/g, '').slice(0, 20),
-      paymentSource: String(raw.paymentSource || '').slice(0, 100),
-      contactName: String(raw.contactName || '').replace(/[^\p{L} .'-]/gu, '').slice(0, 80),
-      dateAmbiguous: Boolean(raw.dateAmbiguous),
-    };
-    return res.json({ fields, provider: 'openrouter', model: process.env.OPENROUTER_EXTRACTION_MODEL || 'z-ai/glm-5.2:free' });
-  } catch (error) {
-    console.error('[report-extract]', error.message || 'unknown error');
-    return res.status(502).json({ error: 'AI report mapping could not be completed.' });
-  }
-});
 app.patch('/api/draft/:id', (req,res) => { const now = new Date().toISOString(); upsert.run({id:req.params.id,data:JSON.stringify(req.body.data || {}),step:req.body.step || 0,updated_at:now}); res.json({savedAt:now}); });
 app.post('/api/evidence/:id', express.raw({ type: '*/*', limit: '10mb' }), (req,res) => {
   if (!req.body?.length) return res.status(400).json({ error: 'The evidence file was empty.' });

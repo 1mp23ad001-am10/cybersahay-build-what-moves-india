@@ -81,8 +81,6 @@ function App() {
   const [sensitive, setSensitive] = useState(storedDraftValue('bwm-sensitive'));
   const [contact, setContact] = useState({ name: '', phone: '', email: '' });
   const [caseDetails, setCaseDetails] = useState(emptyCaseDetails);
-  const [aiDetails, setAiDetails] = useState(null);
-  const [aiMappingState, setAiMappingState] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [recording, setRecording] = useState(false);
   const [status, setStatus] = useState('');
@@ -113,37 +111,18 @@ function App() {
     const amount = extractAmount(input);
     return {
       ...emptyCaseDetails(),
-      incidentDate: aiDetails?.incidentDate || narrative.incidentDate,
-      incidentTime: aiDetails?.incidentTime || narrative.incidentTime,
-      state: aiDetails?.state || (stateMatch?.[1] ? stateMatch[1].replace(/\b\w/g, (letter) => letter.toUpperCase()) : ''),
-      paymentSource: aiDetails?.paymentSource || narrative.paymentSource,
-      amount: aiDetails?.amount || (amount === 'Not stated' ? '' : amount.replace(/[₹,]/g, '')),
+      incidentDate: narrative.incidentDate,
+      incidentTime: narrative.incidentTime,
+      state: stateMatch?.[1] ? stateMatch[1].replace(/\b\w/g, (letter) => letter.toUpperCase()) : '',
+      paymentSource: narrative.paymentSource,
+      amount: amount === 'Not stated' ? '' : amount.replace(/[₹,]/g, ''),
       // Never infer protected IDs from voice. They are mapped only from the typed protected field.
       transactionId: protectedIdentifiers.transactionId,
       dateCandidates: narrative.dateCandidates,
-      dateAmbiguous: Boolean(aiDetails?.dateAmbiguous || narrative.dateAmbiguous),
-      narrativeContact: { ...narrativeContact, name: aiDetails?.contactName || narrativeContact.name },
+      dateAmbiguous: narrative.dateAmbiguous,
+      narrativeContact,
     };
-  }, [aiDetails, input, sensitive]);
-
-  useEffect(() => {
-    const text = input.trim();
-    if (!text) { setAiDetails(null); setAiMappingState(''); return undefined; }
-    const controller = new AbortController();
-    setAiMappingState('AI is reading your report in its original language…');
-    const timer = window.setTimeout(async () => {
-      try {
-        const response = await fetch('/api/extract-report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }), signal: controller.signal });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'AI mapping is unavailable.');
-        setAiDetails(data.fields || {});
-        setAiMappingState(`Mapped with ${data.model || 'AI'}; review each captured value below.`);
-      } catch (err) {
-        if (err.name !== 'AbortError') { setAiDetails(null); setAiMappingState('Using local matching while AI mapping is unavailable.'); }
-      }
-    }, 600);
-    return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [input]);
+  }, [input, sensitive]);
 
   useEffect(() => {
     setCaseDetails((current) => ({
@@ -699,7 +678,7 @@ function App() {
               {recording ? ui.stop : ui.speak}
             </button>
           </div>
-          <p className="live-map-note">{input.trim() ? (aiMappingState || 'Mapping live from your incident details.') : 'Start speaking or typing and the checklist will update live.'}</p>
+          <p className="live-map-note">{input.trim() ? 'Mapping live from your incident details.' : 'Start speaking or typing and the checklist will update live.'}</p>
         </section>
 
         <section className="sensitive-panel">

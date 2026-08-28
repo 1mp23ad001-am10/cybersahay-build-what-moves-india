@@ -364,10 +364,10 @@ function App() {
         stream.getTracks().forEach((track) => track.stop());
         setRecording(false);
         setStatus(ui.transcribing);
+        const audio = new Blob(chunksRef.current, { type: mime });
 
         try {
           const requestedLanguage = languagePreference === 'auto' ? 'unknown' : lang;
-          const audio = new Blob(chunksRef.current, { type: mime });
           const response = await fetch(`/api/transcribe?lang=${encodeURIComponent(requestedLanguage)}`, {
             method: 'POST',
             headers: { 'content-type': mime },
@@ -384,23 +384,24 @@ function App() {
           setStatus(ui.transcript);
         } catch (err) {
           try {
-            setStatus('Trying browser voice recognition…');
+            setStatus('Starting free offline voice recognition…');
             const fallbackLanguage = supportedVoiceLanguage(languagePreference === 'auto' ? lang : languagePreference);
-            const transcript = await browserSpeechTranscript(fallbackLanguage);
+            const transcript = await offlineSpeechTranscript(audio, fallbackLanguage);
             if (!transcript) throw new Error('No speech was recognised. Please retry or type your report.');
             const browserLanguage = fallbackLanguage.split('-')[0];
             if (!hasExpectedScript(transcript, browserLanguage)) throw new Error(`${languageLabel(fallbackLanguage)} speech was not recognised correctly. It was not added; please retry.`);
             setInput((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
-            setStatus('Browser voice transcript added.');
-          } catch (browserError) {
+            setStatus('Offline voice transcript added.');
+          } catch (offlineError) {
             try {
               const fallbackLanguage = supportedVoiceLanguage(languagePreference === 'auto' ? lang : languagePreference);
-              const transcript = await offlineSpeechTranscript(audio, fallbackLanguage);
+              setStatus('Trying browser voice recognition…');
+              const transcript = await browserSpeechTranscript(fallbackLanguage);
               if (!transcript) throw new Error('No speech was recognised. Please retry or type your report.');
               if (!hasExpectedScript(transcript, fallbackLanguage.split('-')[0])) throw new Error(`${languageLabel(fallbackLanguage)} speech was not recognised correctly. It was not added; please retry.`);
               setInput((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
-              setStatus('Offline voice transcript added.');
-            } catch (offlineError) {
+              setStatus('Browser voice transcript added.');
+            } catch (browserError) {
               setStatus('');
               setError(offlineError.message || browserError.message || err.message || 'Transcription failed. You can type instead.');
             }

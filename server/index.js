@@ -153,6 +153,15 @@ app.post('/api/submit/:id', (req,res) => { const reference = `DEMO-CYBER-${new D
 app.get('/api/track/:reference', (req,res) => res.json({reference:req.params.reference,status:'Received',message:'Your complaint has been securely received for review.'}));
 app.post('/api/assist', async (req,res) => { const question = String(req.body.question || '').slice(0,1200); if (!question) return res.status(400).json({error:'Question required'}); const key=process.env.OPENROUTER_API_KEY||process.env.OPENAI_API_KEY; if (key) { try { const client=new OpenAI({apiKey:key,baseURL:process.env.OPENROUTER_API_KEY?'https://openrouter.ai/api/v1':undefined}); const r=await client.chat.completions.create({model:process.env.OPENROUTER_TEXT_MODEL||'openai/gpt-4o-mini',messages:[{role:'system',content:'You are CyberSahay, a calm cybercrime reporting guide for India. Be concise and safe. Never request OTPs, passwords, bank details, or Aadhaar.'},{role:'user',content:question}]}); return res.json({answer:r.choices[0].message.content}); } catch {} } res.json({answer:'For immediate financial fraud, call 1930 and contact your bank. Never share OTPs, passwords, or full card/bank credentials here.'}); });
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'CyberSahay API' }));
+app.get('/api/voice-health', async (_req, res) => {
+  try {
+    const response = await fetch(localAsrUrl.replace(/\/transcribe$/, '/docs'), { signal: AbortSignal.timeout(1500) });
+    if (!response.ok) throw new Error('Speech service unavailable');
+    res.json({ status: 'ok', provider: 'local-whisper', languages: ['English', 'Hindi', 'Kannada'] });
+  } catch {
+    res.status(503).json({ status: 'unavailable', provider: 'local-whisper', languages: ['English', 'Hindi', 'Kannada'] });
+  }
+});
 const staticDir = path.join(process.cwd(), 'dist');
 if (existsSync(staticDir)) {
   app.use(express.static(staticDir));

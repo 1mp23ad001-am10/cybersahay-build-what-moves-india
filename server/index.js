@@ -28,7 +28,11 @@ async function ensureLocalAsr() {
   } catch {
     // Start the bundled free ASR service below when it is not already running.
   }
-  const child = spawn('py', ['-3.13', '-m', 'uvicorn', 'voice_service.main:app', '--host', '127.0.0.1', '--port', '8000'], {
+  const pythonCommand = process.platform === 'win32' ? 'py' : (process.env.PYTHON_BIN || 'python3');
+  const pythonArgs = process.platform === 'win32'
+    ? ['-3.13', '-m', 'uvicorn']
+    : ['-m', 'uvicorn'];
+  const child = spawn(pythonCommand, [...pythonArgs, 'voice_service.main:app', '--host', '127.0.0.1', '--port', '8000'], {
     cwd: process.cwd(),
     windowsHide: true,
     stdio: 'ignore',

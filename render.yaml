@@ -1,16 +1,21 @@
 services:
   - type: web
     name: cybersahay
-    runtime: docker
+    runtime: node
     plan: free
     region: singapore
-    dockerfilePath: ./Dockerfile
+    buildCommand: npm ci && python3 -m pip install --user -r voice_service/requirements.txt && npm run build
+    startCommand: npm run server
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: 22
       - key: DATA_DIR
         value: /tmp/cybersahay-data
+      - key: LOCAL_ASR_ENABLED
+        value: "true"
+      - key: WHISPER_MODEL
+        value: base
       - key: SARVAM_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY

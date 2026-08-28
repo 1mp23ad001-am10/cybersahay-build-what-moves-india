@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: cybersahay
+    runtime: node
+    plan: starter
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm run server
+    healthCheckPath: /api/health
+    disk:
+      name: cybersahay-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATA_DIR
+        value: /var/data
+      - key: LOCAL_ASR_ENABLED
+        value: "false"
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

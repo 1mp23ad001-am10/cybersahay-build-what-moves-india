@@ -3,12 +3,14 @@ import Database from 'better-sqlite3';
 import OpenAI from 'openai';
 import { toFile } from 'openai/uploads';
 import { randomUUID, createHash } from 'crypto';
-import { mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 
 const app = express(); app.use(express.json({ limit: '2mb' }));
-const db = new Database('cybersahay.db');
+const storageRoot = process.env.DATA_DIR || process.cwd();
+mkdirSync(storageRoot, { recursive: true });
+const db = new Database(path.join(storageRoot, 'cybersahay.db'));
 const localAsrUrl = process.env.LOCAL_ASR_URL || 'http://127.0.0.1:8000/transcribe';
 const asrLocale = new Set(['en-IN', 'hi-IN', 'kn-IN', 'as-IN', 'bn-IN', 'brx-IN', 'doi-IN', 'gu-IN', 'kok-IN', 'ks-IN', 'mai-IN', 'ml-IN', 'mni-IN', 'mr-IN', 'ne-IN', 'od-IN', 'pa-IN', 'sa-IN', 'sat-IN', 'sd-IN', 'ta-IN', 'te-IN', 'ur-IN']);
 const transcriptMatchesLanguage = (text, language) => {
@@ -140,7 +142,7 @@ app.post('/api/evidence/:id', express.raw({ type: '*/*', limit: '10mb' }), (req,
   let originalName = 'evidence-file';
   try { originalName = decodeURIComponent(String(req.headers['x-file-name'] || originalName)); } catch {}
   originalName = path.basename(originalName).replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 120) || 'evidence-file';
-  const folder = path.join(process.cwd(), 'uploads', safeId);
+  const folder = path.join(storageRoot, 'uploads', safeId);
   mkdirSync(folder, { recursive: true });
   const storageName = `${randomUUID()}-${originalName}`;
   writeFileSync(path.join(folder, storageName), req.body);
@@ -150,5 +152,12 @@ app.post('/api/evidence/:id', express.raw({ type: '*/*', limit: '10mb' }), (req,
 app.post('/api/submit/:id', (req,res) => { const reference = `DEMO-CYBER-${new Date().getFullYear()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`; const now=new Date().toISOString(); db.prepare("INSERT INTO drafts (id,data,step,status,updated_at) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='submitted',data=excluded.data,step=excluded.step,updated_at=excluded.updated_at").run(req.params.id,JSON.stringify({...req.body.data,reference}),99,'submitted',now); res.json({reference}); });
 app.get('/api/track/:reference', (req,res) => res.json({reference:req.params.reference,status:'Received',message:'Your complaint has been securely received for review.'}));
 app.post('/api/assist', async (req,res) => { const question = String(req.body.question || '').slice(0,1200); if (!question) return res.status(400).json({error:'Question required'}); const key=process.env.OPENROUTER_API_KEY||process.env.OPENAI_API_KEY; if (key) { try { const client=new OpenAI({apiKey:key,baseURL:process.env.OPENROUTER_API_KEY?'https://openrouter.ai/api/v1':undefined}); const r=await client.chat.completions.create({model:process.env.OPENROUTER_TEXT_MODEL||'openai/gpt-4o-mini',messages:[{role:'system',content:'You are CyberSahay, a calm cybercrime reporting guide for India. Be concise and safe. Never request OTPs, passwords, bank details, or Aadhaar.'},{role:'user',content:question}]}); return res.json({answer:r.choices[0].message.content}); } catch {} } res.json({answer:'For immediate financial fraud, call 1930 and contact your bank. Never share OTPs, passwords, or full card/bank credentials here.'}); });
-app.listen(8787, () => console.log('CyberSahay API on http://localhost:8787'));
-ensureLocalAsr();
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'CyberSahay API' }));
+const staticDir = path.join(process.cwd(), 'dist');
+if (existsSync(staticDir)) {
+  app.use(express.static(staticDir));
+  app.get('{*splat}', (_req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+}
+const port = Number(process.env.PORT || 8787);
+app.listen(port, '0.0.0.0', () => console.log(`CyberSahay API on http://0.0.0.0:${port}`));
+if (process.env.LOCAL_ASR_ENABLED !== 'false') ensureLocalAsr();

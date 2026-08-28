@@ -1,23 +1,16 @@
 services:
   - type: web
     name: cybersahay
-    runtime: node
-    plan: starter
+    runtime: docker
+    plan: free
     region: singapore
-    buildCommand: npm ci && npm run build
-    startCommand: npm run server
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
-    disk:
-      name: cybersahay-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 22
       - key: DATA_DIR
-        value: /var/data
-      - key: LOCAL_ASR_ENABLED
-        value: "false"
+        value: /tmp/cybersahay-data
       - key: SARVAM_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY

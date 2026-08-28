@@ -516,17 +516,25 @@ export function extractCaseDetails(text) {
   const value = String(text || '');
   const today = new Date();
   const asIsoDate = (date) => date.toISOString().slice(0, 10);
-  let incidentDate = '';
-  const numericDate = value.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\b/);
-  if (numericDate) {
-    const [, day, month, rawYear] = numericDate;
+  const dateCandidates = [];
+  for (const match of value.matchAll(/\b(\d{1,2})(?:[\s/.-]+)(\d{1,2})(?:[\s/.-]+)(\d{2,4})\b/g)) {
+    const [, day, month, rawYear] = match;
     const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
-    incidentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  } else if (/\btoday\b|आज|ಇಂದು/i.test(value)) {
+    const candidate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const date = new Date(`${candidate}T00:00:00`);
+    if (date.getFullYear() === Number(year) && date.getMonth() + 1 === Number(month) && date.getDate() === Number(day)) dateCandidates.push(candidate);
+  }
+  let incidentDate = dateCandidates[0] || '';
+  if (!incidentDate && /\btoday\b|आज|ಇಂದು/i.test(value)) {
     incidentDate = asIsoDate(today);
-  } else if (/\byesterday\b|कल|ನಿನ್ನೆ/i.test(value)) {
+  } else if (!incidentDate && /\byesterday\b|कल|ನಿನ್ನೆ/i.test(value)) {
     today.setDate(today.getDate() - 1);
     incidentDate = asIsoDate(today);
+  }
+
+  const uniqueDates = [...new Set(dateCandidates)];
+  if (!incidentDate) {
+    incidentDate = '';
   }
 
   const rawTime = value.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i);
@@ -542,7 +550,18 @@ export function extractCaseDetails(text) {
 
   const paymentSource = value.match(/\b(SBI|HDFC|ICICI|Axis|Kotak|Paytm|PhonePe|GPay|Google Pay|BHIM|bank|wallet|merchant)\b/i)?.[1] || '';
   const transactionId = value.match(/\b(?:UTR|transaction(?:\s+ID)?|reference(?:\s+number|\s+no)?)\s*[:#-]?\s*([a-z0-9-]{6,})\b/i)?.[1] || '';
-  return { incidentDate, incidentTime, paymentSource, transactionId };
+  return { incidentDate, incidentTime, paymentSource, transactionId, dateCandidates: uniqueDates, dateAmbiguous: uniqueDates.length > 1 };
+}
+
+export function extractContactDetails(text) {
+  const value = String(text || '');
+  const name = value.match(/\b(?:my\s+name\s+is|i\s+am|i['’]m|this\s+is)\s+([a-z][a-z .'-]{1,60}?)(?=\s*(?:[,.]|and\b|my\s+(?:number|phone|mobile)|the\s+incident|$))/i)?.[1]
+    ?.replace(/\s+/g, ' ')
+    .trim() || '';
+  const phoneMatch = value.match(/\b(?:my\s+(?:number|phone(?:\s+number)?|mobile(?:\s+number)?)\s+is|contact(?:\s+number)?\s+is)\s*(?:\+?91[\s-]?)?([6-9][\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d)\b/i);
+  const phone = phoneMatch?.[1]?.replace(/\D/g, '') || '';
+  const email = value.match(/\b(?:my\s+)?email(?:\s+(?:is|address is))?\s*[:=-]?\s*([\w.+-]+@[\w-]+\.[\w.-]+)\b/i)?.[1] || '';
+  return { name, phone, email };
 }
 
 export function buildReport({ text, sensitive = '', caseDetails = {}, attachments = [], route = 'other', contact = {} }) {

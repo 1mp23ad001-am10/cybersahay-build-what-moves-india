@@ -7,6 +7,7 @@ import {
   classify,
   extractAmount,
   extractCaseDetails,
+  extractContactDetails,
 } from './reportEngine.js';
 import './styles.css';
 
@@ -104,6 +105,7 @@ function App() {
 
   const mappedDetails = useMemo(() => {
     const narrative = extractCaseDetails(input);
+    const narrativeContact = extractContactDetails(input);
     const protectedIdentifiers = extractCaseDetails(sensitive);
     const stateMatch = String(input).match(/\b(andhra pradesh|arunachal pradesh|assam|bihar|chhattisgarh|goa|gujarat|haryana|himachal pradesh|jharkhand|karnataka|kerala|madhya pradesh|maharashtra|manipur|meghalaya|mizoram|nagaland|odisha|punjab|rajasthan|sikkim|tamil nadu|telangana|tripura|uttar pradesh|uttarakhand|west bengal|delhi|jammu and kashmir|ladakh|puducherry)\b/i);
     const amount = extractAmount(input);
@@ -116,15 +118,27 @@ function App() {
       amount: amount === 'Not stated' ? '' : amount.replace(/[₹,]/g, ''),
       // Never infer protected IDs from voice. They are mapped only from the typed protected field.
       transactionId: protectedIdentifiers.transactionId,
+      dateCandidates: narrative.dateCandidates,
+      dateAmbiguous: narrative.dateAmbiguous,
+      narrativeContact,
     };
   }, [input, sensitive]);
 
   useEffect(() => { setCaseDetails(mappedDetails); }, [mappedDetails]);
+  useEffect(() => {
+    const extracted = mappedDetails.narrativeContact;
+    if (!extracted) return;
+    setContact((current) => ({
+      name: current.name || extracted.name,
+      phone: current.phone || extracted.phone,
+      email: current.email || extracted.email,
+    }));
+  }, [mappedDetails.narrativeContact]);
 
   const checklist = useMemo(() => {
     const required = [
       { label: 'Incident account', complete: Boolean(input.trim()), prompt: 'Briefly describe what happened.' },
-      { label: ui.incidentDate, complete: Boolean(mappedDetails.incidentDate), prompt: 'Add the incident date.' },
+      { label: ui.incidentDate, complete: Boolean(mappedDetails.incidentDate) && !mappedDetails.dateAmbiguous, prompt: mappedDetails.dateAmbiguous ? `I heard more than one date (${mappedDetails.dateCandidates.join(' and ')}). State the one incident date clearly in the incident box.` : 'Add the incident date.' },
       { label: ui.incidentTime, complete: Boolean(mappedDetails.incidentTime), prompt: 'Add the incident time.' },
       { label: ui.state, complete: Boolean(mappedDetails.state), prompt: 'Add the State / UT where it happened.' },
       { label: ui.name || 'Full name', complete: Boolean(contact.name.trim()), prompt: 'Enter your full name below.' },

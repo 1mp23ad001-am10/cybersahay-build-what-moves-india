@@ -513,16 +513,29 @@ export function maskSensitive(text) {
 }
 
 export function extractCaseDetails(text) {
-  const value = String(text || '');
+  const value = String(text || '').replace(/[೦-೯]/g, (digit) => String('೦೧೨೩೪೫೬೭೮೯'.indexOf(digit)));
   const today = new Date();
   const asIsoDate = (date) => date.toISOString().slice(0, 10);
   const dateCandidates = [];
-  for (const match of value.matchAll(/\b(\d{1,2})(?:[\s/.-]+)(\d{1,2})(?:[\s/.-]+)(\d{2,4})\b/g)) {
-    const [, day, month, rawYear] = match;
+  const addDate = (rawDay, rawMonth, rawYearValue) => {
+    const day = String(rawDay);
+    const month = String(rawMonth);
+    const rawYear = String(rawYearValue);
     const year = rawYear.length === 2 ? `20${rawYear}` : rawYear;
     const candidate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     const date = new Date(`${candidate}T00:00:00`);
     if (date.getFullYear() === Number(year) && date.getMonth() + 1 === Number(month) && date.getDate() === Number(day)) dateCandidates.push(candidate);
+  };
+  for (const match of value.matchAll(/(?<!\d)(\d{1,2})(?:[\s/.-]+)(\d{1,2})(?:[\s/.-]+)(\d{2,4})(?!\d)/g)) {
+    const [, day, month, rawYear] = match;
+    addDate(day, month, rawYear);
+  }
+  const kannadaMonths = { 'ಜನವರಿ': 1, 'ಫೆಬ್ರವರಿ': 2, 'ಮಾರ್ಚ್': 3, 'ಏಪ್ರಿಲ್': 4, 'ಮೇ': 5, 'ಜೂನ್': 6, 'ಜುಲೈ': 7, 'ಆಗಸ್ಟ್': 8, 'ಸೆಪ್ಟೆಂಬರ್': 9, 'ಅಕ್ಟೋಬರ್': 10, 'ನವೆಂಬರ್': 11, 'ಡಿಸೆಂಬರ್': 12 };
+  const monthNames = Object.keys(kannadaMonths).join('|');
+  for (const match of value.matchAll(new RegExp(`(?<!\\d)(\\d{1,4})\\s+(${monthNames})\\s+(\\d{1,4})(?!\\d)`, 'g'))) {
+    const [, first, monthName, last] = match;
+    if (first.length === 4) addDate(last, kannadaMonths[monthName], first);
+    else addDate(first, kannadaMonths[monthName], last);
   }
   let incidentDate = dateCandidates[0] || '';
   if (!incidentDate && /\btoday\b|आज|ಇಂದು/i.test(value)) {
@@ -537,15 +550,20 @@ export function extractCaseDetails(text) {
     incidentDate = '';
   }
 
-  const rawTime = value.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i);
+  const rawTime = value.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i)
+    || value.match(/(?:ಬೆಳಿಗ್ಗೆ|ಮುಂಜಾನೆ|ಮಧ್ಯಾಹ್ನ|ಸಂಜೆ|ರಾತ್ರಿ)\s*(\d{1,2})(?::(\d{2}))?\s*(?:ಗಂಟೆ(?:\s*(\d{1,2})\s*ನಿಮಿಷ)?(?:ಕ್ಕೆ|ಗೆ)?|ಕ್ಕೆ)?/i)
+    || value.match(/(?<!\d)(\d{1,2})(?::(\d{2}))?\s*(?:ಗಂಟೆ(?:\s*(\d{1,2})\s*ನಿಮಿಷ)?(?:ಕ್ಕೆ|ಗೆ)?|ಕ್ಕೆ)(?!\d)/i);
   let incidentTime = '';
   if (rawTime) {
     let hour = Number(rawTime[1]);
-    const minute = rawTime[2] || '00';
-    const meridiem = rawTime[3].toLowerCase();
-    if (meridiem.startsWith('p') && hour < 12) hour += 12;
-    if (meridiem.startsWith('a') && hour === 12) hour = 0;
-    incidentTime = `${String(hour).padStart(2, '0')}:${minute}`;
+    const minute = rawTime[2] || (/ನಿಮಿಷ/.test(rawTime[0]) ? rawTime[3] : '') || '00';
+    const before = value.slice(Math.max(0, value.indexOf(rawTime[0]) - 18), value.indexOf(rawTime[0]) + rawTime[0].length);
+    const meridiem = rawTime[0].match(/\b(am|pm|a\.m\.|p\.m\.)\b/i)?.[1]?.toLowerCase() || '';
+    const isPm = meridiem.startsWith('p') || /ಮಧ್ಯಾಹ್ನ|ಸಂಜೆ|ರಾತ್ರಿ/.test(before);
+    const isAm = meridiem.startsWith('a') || /ಬೆಳಿಗ್ಗೆ|ಮುಂಜಾನೆ/.test(before);
+    if (isPm && hour < 12) hour += 12;
+    if (isAm && hour === 12) hour = 0;
+    if (hour <= 23 && Number(minute) <= 59) incidentTime = `${String(hour).padStart(2, '0')}:${minute}`;
   }
 
   const paymentSource = value.match(/\b(SBI|HDFC|ICICI|Axis|Kotak|Paytm|PhonePe|GPay|Google Pay|BHIM|bank|wallet|merchant)\b/i)?.[1] || '';

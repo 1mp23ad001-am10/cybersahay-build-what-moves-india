@@ -259,6 +259,7 @@ h1 em {
 .checklist-groups li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; padding: 8px 0; color: #73827d; border-top: 1px solid #e2e9e2; }
 .checklist-groups li span { font-weight: 800; }
 .checklist-groups li b { display: block; font-size: 14px; font-weight: 600; }
+.checklist-groups li em { display: block; margin-top: 3px; overflow-wrap: anywhere; color: #4e675f; font-family: 'DM Mono', monospace; font-size: 11px; font-style: normal; letter-spacing: .02em; }
 .checklist-groups li small { display: block; margin-top: 3px; color: #bd442b; font-family: Manrope, sans-serif; font-size: 12px; letter-spacing: 0; text-transform: none; }
 .checklist-groups li.done { color: #25664d; }
 .checklist-groups li.done span { color: #16804d; }

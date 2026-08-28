@@ -124,7 +124,17 @@ function App() {
     };
   }, [input, sensitive]);
 
-  useEffect(() => { setCaseDetails(mappedDetails); }, [mappedDetails]);
+  useEffect(() => {
+    setCaseDetails((current) => ({
+      ...current,
+      ...(mappedDetails.incidentDate && !mappedDetails.dateAmbiguous ? { incidentDate: mappedDetails.incidentDate } : {}),
+      ...(mappedDetails.incidentTime ? { incidentTime: mappedDetails.incidentTime } : {}),
+      ...(mappedDetails.state ? { state: mappedDetails.state } : {}),
+      ...(mappedDetails.paymentSource ? { paymentSource: mappedDetails.paymentSource } : {}),
+      ...(mappedDetails.amount ? { amount: mappedDetails.amount } : {}),
+      ...(mappedDetails.transactionId ? { transactionId: mappedDetails.transactionId } : {}),
+    }));
+  }, [mappedDetails]);
   useEffect(() => {
     const extracted = mappedDetails.narrativeContact;
     if (!extracted) return;
@@ -137,17 +147,17 @@ function App() {
 
   const checklist = useMemo(() => {
     const required = [
-      { label: 'Incident account', complete: Boolean(input.trim()), prompt: 'Briefly describe what happened.' },
-      { label: ui.incidentDate, complete: Boolean(mappedDetails.incidentDate) && !mappedDetails.dateAmbiguous, prompt: mappedDetails.dateAmbiguous ? `I heard more than one date (${mappedDetails.dateCandidates.join(' and ')}). State the one incident date clearly in the incident box.` : 'Add the incident date.' },
-      { label: ui.incidentTime, complete: Boolean(mappedDetails.incidentTime), prompt: 'Add the incident time.' },
-      { label: ui.state, complete: Boolean(mappedDetails.state), prompt: 'Add the State / UT where it happened.' },
-      { label: ui.name || 'Full name', complete: Boolean(contact.name.trim()), prompt: 'Enter your full name below.' },
-      { label: ui.mobile || 'Indian mobile number', complete: /^\d{10}$/.test(contact.phone.replace(/\D/g, '')), prompt: 'Enter a valid 10-digit mobile number below.' },
+      { label: 'Incident account', complete: Boolean(input.trim()), value: input.trim() ? 'Narrative captured' : '', prompt: 'Briefly describe what happened.' },
+      { label: ui.incidentDate, complete: Boolean(caseDetails.incidentDate) && !mappedDetails.dateAmbiguous, value: caseDetails.incidentDate, prompt: mappedDetails.dateAmbiguous ? `I heard more than one date (${mappedDetails.dateCandidates.join(' and ')}). State the one incident date clearly in the incident box.` : 'Add the incident date.' },
+      { label: ui.incidentTime, complete: Boolean(caseDetails.incidentTime), value: caseDetails.incidentTime, prompt: 'Add the incident time.' },
+      { label: ui.state, complete: Boolean(caseDetails.state), value: caseDetails.state, prompt: 'Add the State / UT where it happened.' },
+      { label: ui.name || 'Full name', complete: Boolean(contact.name.trim()), value: contact.name, prompt: 'Enter your full name below.' },
+      { label: ui.mobile || 'Indian mobile number', complete: /^\d{10}$/.test(contact.phone.replace(/\D/g, '')), value: contact.phone ? `••••••${contact.phone.replace(/\D/g, '').slice(-4)}` : '', prompt: 'Enter a valid 10-digit mobile number below.' },
     ];
     if (route === 'financial') required.splice(4, 0,
-      { label: ui.exactAmount, complete: Boolean(mappedDetails.amount), prompt: 'Say or type the exact loss amount in the incident box.' },
-      { label: ui.paymentSource, complete: Boolean(mappedDetails.paymentSource), prompt: 'Say or type the bank, wallet, or merchant in the incident box.' },
-      { label: ui.transactionId, complete: Boolean(mappedDetails.transactionId), prompt: 'Type the transaction / UTR reference safely in Protected details.' },
+      { label: ui.exactAmount, complete: Boolean(caseDetails.amount), value: caseDetails.amount ? `₹${caseDetails.amount}` : '', prompt: 'Say or type the exact loss amount in the incident box.' },
+      { label: ui.paymentSource, complete: Boolean(caseDetails.paymentSource), value: caseDetails.paymentSource, prompt: 'Say or type the bank, wallet, or merchant in the incident box.' },
+      { label: ui.transactionId, complete: Boolean(caseDetails.transactionId), value: caseDetails.transactionId ? 'Captured in protected details' : '', prompt: 'Type the transaction / UTR reference safely in Protected details.' },
     );
     const optional = [
       { label: route === 'financial' ? 'Payment app, destination, or suspect account' : 'Platform or app involved', complete: /\b(phonepe|gpay|google pay|paytm|bhim|whatsapp|instagram|facebook|telegram|website|app)\b/i.test(input) },
@@ -155,7 +165,7 @@ function App() {
       { label: 'Screenshots, chats, emails, statements, or other evidence', complete: attachments.length > 0 },
     ];
     return { required, optional };
-  }, [attachments.length, contact.name, contact.phone, input, mappedDetails, route, sensitive, ui]);
+  }, [attachments.length, caseDetails, contact.name, contact.phone, input, mappedDetails, route, sensitive, ui]);
   const missingFields = checklist.required.filter((item) => !item.complete);
 
   const draftId = useMemo(() => {
@@ -314,7 +324,7 @@ function App() {
           if (!transcript) throw new Error('No speech was detected. Check your microphone and try again, or type your report.');
           const detectedLanguage = resolveTranscriptionLanguage(data.language);
           if (!hasExpectedScript(transcript, detectedLanguage.split('-')[0])) throw new Error(`${languageLabel(detectedLanguage)} speech was not recognised correctly. It was not added; please retry.`);
-          setInput(transcript);
+          setInput((current) => current.trim() ? `${current.trim()} ${transcript}` : transcript);
           setStatus(ui.transcript);
         } catch (err) {
           setStatus('');
@@ -353,7 +363,7 @@ function App() {
     }
     setError('');
     setReference('');
-    setReport(buildReport({ text: input, sensitive, caseDetails: mappedDetails, attachments, route, contact }));
+    setReport(buildReport({ text: input, sensitive, caseDetails, attachments, route, contact }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   function updateContact(key, value) {
@@ -634,7 +644,7 @@ function App() {
           <div className="checklist-groups">
             <div>
               <strong>Required before review</strong>
-              <ul>{checklist.required.map((item) => <li className={item.complete ? 'done' : 'missing'} key={item.label}><span>{item.complete ? '✓' : '○'}</span><div><b>{item.label}</b>{!item.complete && <small>{item.prompt}</small>}</div></li>)}</ul>
+              <ul>{checklist.required.map((item) => <li className={item.complete ? 'done' : 'missing'} key={item.label}><span>{item.complete ? '✓' : '○'}</span><div><b>{item.label}</b>{item.complete && item.value && <em>{item.value}</em>}{!item.complete && <small>{item.prompt}</small>}</div></li>)}</ul>
             </div>
             <div>
               <strong>Optional — no need to fill these now</strong>

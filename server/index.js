@@ -35,8 +35,15 @@ async function ensureLocalAsr() {
   const child = spawn(pythonCommand, [...pythonArgs, 'voice_service.main:app', '--host', '127.0.0.1', '--port', '8000'], {
     cwd: process.cwd(),
     windowsHide: true,
-    stdio: 'ignore',
+    // Keep the ASR worker's startup errors in the Render log. Without these
+    // streams a missing runtime or model-loading failure looks like a silent
+    // "speech unavailable" state to both the user and the deployer.
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  child.once('error', (error) => console.error('[local-asr] unable to start:', error.message));
+  child.stdout?.on('data', (chunk) => console.log(`[local-asr] ${String(chunk).trim()}`));
+  child.stderr?.on('data', (chunk) => console.warn(`[local-asr] ${String(chunk).trim()}`));
+  child.once('exit', (code, signal) => console.warn(`[local-asr] worker exited (code=${code}, signal=${signal || 'none'}).`));
   child.unref();
   for (let attempt = 0; attempt < 45; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 1000));

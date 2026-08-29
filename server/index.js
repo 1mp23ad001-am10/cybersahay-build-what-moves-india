@@ -22,6 +22,7 @@ const transcriptMatchesLanguage = (text, language) => {
 };
 
 async function ensureLocalAsr() {
+  console.log(`[local-asr] enabled=${process.env.LOCAL_ASR_ENABLED ?? 'unset'}; checking ${localAsrUrl}`);
   try {
     const response = await fetch(localAsrUrl.replace(/\/transcribe$/, '/docs'), { signal: AbortSignal.timeout(800) });
     if (response.ok) return;
@@ -32,6 +33,7 @@ async function ensureLocalAsr() {
   const pythonArgs = process.platform === 'win32'
     ? ['-3.13', '-m', 'uvicorn']
     : ['-m', 'uvicorn'];
+  console.log(`[local-asr] starting ${pythonCommand} ${pythonArgs.join(' ')} voice_service.main:app`);
   const child = spawn(pythonCommand, [...pythonArgs, 'voice_service.main:app', '--host', '127.0.0.1', '--port', '8000'], {
     cwd: process.cwd(),
     windowsHide: true,

@@ -321,6 +321,24 @@ h1 em {
   box-shadow: 8px 8px 0 #dce4dc;
 }
 
+.demo-button {
+  align-self: end;
+  border: 1px solid #1f665b;
+  padding: 11px 13px;
+  color: #16574d;
+  background: #f6fbf7;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.demo-button:hover,
+.demo-button:focus-visible {
+  color: #fff;
+  background: #1f665b;
+}
+
 .command-panel p,
 .sensitive-panel p,
 .case-panel p,

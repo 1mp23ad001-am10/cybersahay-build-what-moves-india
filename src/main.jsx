@@ -16,6 +16,11 @@ const APP_VERSION = 'cyber-report-v6-clean-voice-draft';
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENTS = 10;
 const emptyCaseDetails = () => ({ incidentDate: '', incidentTime: '', state: '', paymentSource: '', transactionId: '', amount: '', transactionCount: '1', payerBank: '', payeeBank: '', payeeUpi: '', paymentApp: '', suspectPhone: '', suspectUpi: '', suspectAccount: '', platform: '', url: '', handle: '', syntheticType: '', syntheticHarm: '' });
+const FICTIONAL_DEMO = {
+  narrative: 'I am Ananya Rao. On 18 August 2026 at 4:30 pm in Karnataka, I lost Rs 2,500 through a fake customer-care call. The payment was made using PhonePe from my bank account.',
+  protected: 'Demo UTR reference: DEMO-UTR-482019',
+  contact: { name: 'Ananya Rao', phone: '9876543210', email: 'ananya.demo@example.com' },
+};
 const INTAKE_GUIDE = {
   en: {
     title: 'Before you begin',
@@ -554,6 +559,21 @@ function App() {
     localStorage.removeItem('bwm-sensitive');
   }
 
+  function loadFictionalDemo() {
+    const hasDraft = Boolean(input.trim() || sensitive.trim() || contact.name.trim() || contact.phone.trim());
+    if (hasDraft && !window.confirm('Replace this local draft with a clearly fictional demo? Your current draft will be cleared from this screen.')) return;
+    setRoute('financial');
+    setInput(FICTIONAL_DEMO.narrative);
+    setSensitive(FICTIONAL_DEMO.protected);
+    setContact(FICTIONAL_DEMO.contact);
+    setCaseDetails(emptyCaseDetails());
+    setAttachments([]);
+    setReport(null);
+    setReference('');
+    setError('');
+    setStatus('Fictional demo loaded. Edit any detail or clear it before using the app for a real report.');
+  }
+
   if (report) {
     return (
       <main className={`bwm review-page ${highContrast ? 'high-contrast' : ''} font-${fontSize}`}>
@@ -723,6 +743,7 @@ function App() {
               <div><strong>{intakeGuide.optional}</strong><span>{intakeGuide.optionalItems}</span></div>
             </div>
           </div>
+          <button className="demo-button" type="button" onClick={loadFictionalDemo}>Try a fictional 60-second demo</button>
         </section>
 
         <section className="live-checklist" aria-live="polite" aria-labelledby="checklist-title">

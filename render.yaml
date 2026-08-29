@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm ci && python3 -m pip install --user -r voice_service/requirements.txt && npm run build
+    buildCommand: npm ci && python3 -m pip install -r voice_service/requirements.txt && npm run build
     startCommand: npm run server
     healthCheckPath: /api/health
     envVars:
